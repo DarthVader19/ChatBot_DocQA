@@ -1,17 +1,17 @@
 import os
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi import FastAPI, UploadFile, File, HTTPException # type: ignore
+from fastapi.middleware.cors import CORSMiddleware # type: ignore # type: ignore
+from pydantic import BaseModel # type: ignore
 # import ollama
-from PyPDF2 import PdfReader
-from docx import Document
+from PyPDF2 import PdfReader # type: ignore # type: ignore
+from docx import Document # type: ignore
 from typing import List, Optional
-from sentence_transformers import SentenceTransformer
-import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
+from sentence_transformers import SentenceTransformer # type: ignore
+import numpy as np # type: ignore # type: ignore
+from sklearn.metrics.pairwise import cosine_similarity # type: ignore
 import tempfile
-import uvicorn
-from ollama import Client, AsyncClient
+import uvicorn # type: ignore
+from ollama import Client, AsyncClient # type: ignore
 import asyncio
 
 

@@ -1,7 +1,7 @@
 import os
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from starlette.responses import StreamingResponse
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, UploadFile, File, HTTPException # type: ignore
+from starlette.responses import StreamingResponse # type: ignore
+from fastapi.middleware.cors import CORSMiddleware # type: ignore
 from pydantic import BaseModel
 from PyPDF2 import PdfReader
 from docx import Document

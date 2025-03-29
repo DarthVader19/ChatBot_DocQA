@@ -12,7 +12,7 @@ Document QA is a project designed to provide question-answering capabilities ove
 ## Installation
 1. Clone the repository:
     ```bash
-    git clone https://github.com/your-repo/document-qa.git
+    git clone https://github.com/DarthVader19/ChatBot_Docs.git
     ```
 2. Navigate to the project directory:
     ```bash
