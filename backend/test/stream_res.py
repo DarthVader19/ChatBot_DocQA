@@ -30,7 +30,7 @@ app.add_middleware(
 embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
 
 # Initialize Ollama client
-ollama = AsyncClient(host='http://localhost:11434')
+ollama_ac = AsyncClient(host='http://localhost:11434')
 
 class DocumentData:
     def __init__(self):
@@ -46,7 +46,7 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: List[ChatMessage]
-    model: str = "gemma3"  # default model
+    model: str = "gemma3.2"  # default model
 
 def extract_text_from_pdf(file_path: str) -> str:
     text = ""
@@ -83,6 +83,10 @@ def chunk_text(text: str, chunk_size: int = 1000) -> List[str]:
         chunks.append(" ".join(current_chunk))
 
     return chunks
+
+@app.get("/")
+def root():
+    return {"message": "The API is running"}
 
 @app.post("/upload")
 async def upload_document(file: UploadFile = File(...)):
@@ -130,12 +134,12 @@ async def generate_response_chunks(request: ChatRequest):
     prompt = f"""Document Context:{context} 
     Based on the above document, answer the following question:
     {last_message.content}"""
-
+    
     messages = [
         {
             "role": "system",
             "content": "You are a helpful assistant that answers questions based on the provided document. "
-                       " If the answer isn't in the document, say you don't know. Also provide at the number of tokens used and ask the user if they want to continue."
+                       " If the answer isn't in the document, say you don't know. Also ask the user if they want to continue."
 
         },
         {
@@ -145,7 +149,7 @@ async def generate_response_chunks(request: ChatRequest):
     ]
 
     try:
-        async for part in await ollama.chat(model=request.model, messages=messages, stream=True):
+        async for part in await ollama_ac.chat(model=request.model, messages=messages, stream=True):
             yield json.dumps({'response': part['message']['content']})
     except Exception as e:
         yield json.dumps({'error': str(e)})
@@ -154,12 +158,34 @@ async def generate_response_chunks(request: ChatRequest):
 async def chat_with_document(request: ChatRequest):
     return StreamingResponse(generate_response_chunks(request), media_type="application/json")
 
+async def generate_response_chunks_general(request: ChatRequest):
+    last_message = request.messages[-1]
+
+    messages = [
+        {
+            "role": "user",
+            "content": last_message.content
+        }
+    ]
+
+    try:
+        async for part in await ollama_ac.chat(model=request.model, messages=messages, stream=True):
+            yield json.dumps({'response': part['message']['content']})
+    except Exception as e:
+        yield json.dumps({'error': str(e)})
+
+#chat with general model
+@app.post("/general/chat")
+async def chat_with_general_model(request: ChatRequest):
+   return StreamingResponse(generate_response_chunks_general(request), media_type="application/json")
+
+
 
 
 @app.get("/models")
 async def get_available_models():
     try:
-        models = await ollama.list()
+        models = await ollama_ac.list()
         return {"models": models}
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))

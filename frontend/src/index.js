@@ -1,19 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
-import App from './App';
 import reportWebVitals from './reportWebVitals';
-// import ChatApp from './components/chatapp';
-import Chatbot from './components/chatbot';
-import StreamChatApp from './components/streamChatApp';
+import ChatAppGen from './components/chatAppGen';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    {/* <App/> */}
-    {/* <Chatbot/> */}
-   
-    <StreamChatApp/>
+   <ChatAppGen />
     
   </React.StrictMode>
 );

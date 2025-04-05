@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import './chatbot.css';
+import {Button} from '@mui/material';
+
 
 const StreamChatApp = ({ apiUrl = "http://localhost:8000", defaultDarkMode = false }) => {
   const [messages, setMessages] = useState([]);
@@ -12,6 +14,9 @@ const StreamChatApp = ({ apiUrl = "http://localhost:8000", defaultDarkMode = fal
   const [availableModels, setAvailableModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState('gemma3');
   const [darkMode, setDarkMode] = useState(defaultDarkMode);
+ const [isGeneralChat, setIsGeneralChat] = useState(false);
+ const [isStreaming, setIsStreaming] = useState(false);
+  
   const messagesEndRef = useRef(null);
 
   // Initialize with dark mode if preferred
@@ -28,11 +33,13 @@ const StreamChatApp = ({ apiUrl = "http://localhost:8000", defaultDarkMode = fal
   useEffect(() => {
     const fetchModels = async () => {
       try {
+        console.log('Fetching models...');
+        
         const response = await axios.get(`${apiUrl}/models`);
         if (response.data && response.data.models) {
             console.log('Available models:', response.data.models.models);
-          setAvailableModels([{model:'otherModel'},...response.data.models.models]);
-          if (response.data.models.models.length==1) {
+          setAvailableModels([{model:'No-Model'},...response.data.models.models]);
+          if (response.data.models.models.length===1) {
             setSelectedModel(response.data.models.models[0].model);
           }
         }
@@ -62,75 +69,85 @@ const StreamChatApp = ({ apiUrl = "http://localhost:8000", defaultDarkMode = fal
     setIsLoading(true);
 
     let assistantMessage = { role: 'assistant', content: '' };
-      setMessages((prevMessages) => [...prevMessages, assistantMessage]);
+    setMessages((prevMessages) => [...prevMessages, assistantMessage]);
 
     try {
-      const response = await fetch(`${apiUrl}/chat`, {
+      const endpoint = isGeneralChat ? 'http://localhost:8000/general/chat' : 'http://localhost:8000/chat';
+
+      console.log(endpoint);
+      console.log(isGeneralChat);
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: [...messages, newMessage],
           model: selectedModel,
+          streaming: isStreaming, // Pass the streaming flag to the backend
         }),
       });
+         console.log(messages);
 
-      
+      if (isStreaming) {
+        // Handle streaming response
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
 
-      console.log('Response:', response);
-      
-      const reader = response.body.getReader();
+        const processStream = async () => {
+          let fullContent = '';
 
-      const decoder = new TextDecoder();
-      
-      const processStream = async () => {
-        let fullContent = '';
-
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) {
-            setIsLoading(false);
-            break;
-          }
-
-          const chunk = decoder.decode(value);
-        //   console.log('Received chunk:', chunk);
-          try {
-            const parsedChunk = JSON.parse(chunk);
-            // console.log('Parsed chunk:', parsedChunk);
-            
-
-            if (parsedChunk && parsedChunk.response) {
-
-              fullContent += parsedChunk.response;
-              setMessages(prevMessages => {
-                const updatedMessages = [...prevMessages];
-                // console.log('Updated messages: before', updatedMessages);
-                
-                updatedMessages[updatedMessages.length - 1].content = fullContent;
-                // console.log('Updated messages: after', updatedMessages);
-                
-                return updatedMessages;
-              });
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) {
+              setIsLoading(false);
+              break;
             }
-          } catch (error) {
-            console.error('Error parsing chunk:', error);
+
+            const chunk = decoder.decode(value);
+            try {
+              const parsedChunk = JSON.parse(chunk);
+
+              if (parsedChunk && parsedChunk.response) {
+                fullContent += parsedChunk.response;
+                setMessages((prevMessages) => {
+                  const updatedMessages = [...prevMessages];
+                  updatedMessages[updatedMessages.length - 1].content = fullContent;
+                  return updatedMessages;
+                });
+              }
+            } catch (error) {
+              console.error('Error parsing chunk:', error);
+            }
           }
-        }
-      };
+        };
 
-      await processStream();
-
+        await processStream();
+      } else {
+        // Handle non-streaming response
+        const jsonResponse = await response.json();
+        setMessages((prevMessages) => {
+          const updatedMessages = [...prevMessages];
+          updatedMessages[updatedMessages.length - 1].content = jsonResponse.response;
+          return updatedMessages;
+        });
+        setIsLoading(false);
+      }
     } catch (error) {
       console.error('Chat error:', error);
       setMessages([
         ...messages,
         newMessage,
-        { role: 'assistant', content: 'Failed to get streaming response.' },
+        { role: 'assistant', content: 'Failed to get response.' },
       ]);
       setIsLoading(false);
     }
   };
 
+
+  const toggleChatMode = () => {
+    setIsGeneralChat(!isGeneralChat);
+    setMessages([]); // Clear messages when switching modes
+  };
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -195,6 +212,8 @@ const StreamChatApp = ({ apiUrl = "http://localhost:8000", defaultDarkMode = fal
     setDarkMode(!darkMode);
   };
 
+  
+
   return (
     <div className={`chatbot-container ${isOpen ? 'open' : ''} ${darkMode ? 'dark-mode' : ''}`}>
       <button className="chatbot-toggle" onClick={toggleChat}>
@@ -206,6 +225,21 @@ const StreamChatApp = ({ apiUrl = "http://localhost:8000", defaultDarkMode = fal
           <div className="chatbot-header">
             <h3>Document Assistant</h3>
             <div className="header-controls">
+              {/* <div className="chat-mode-toggle">
+              <Button variant="contained" color="primary" onClick={toggleChatMode}>
+                      Switch to {isGeneralChat ? 'Document Chat' : 'General Chat'}
+                   </Button>
+                   <div>
+                   <Button
+                          variant="contained"
+                          color="info"
+                          onClick={() => setIsStreaming(!isStreaming)}
+                        >
+                          {isStreaming ? 'Disable Streaming' : 'Enable Streaming'}
+          </Button>
+                    </div>
+              </div> */}
+                
               <div className="model-selector">
                 <label htmlFor="model-select">Model:</label>
                 <select 
@@ -228,6 +262,7 @@ const StreamChatApp = ({ apiUrl = "http://localhost:8000", defaultDarkMode = fal
               >
                 {darkMode ? '☀️' : '🌙'}
               </button>
+             
             </div>
           </div>
           

@@ -1,4 +1,7 @@
 import os
+from webbrowser import get
+
+# from prompt_toolkit import prompt
 from fastapi import FastAPI, UploadFile, File, HTTPException # type: ignore
 from fastapi.middleware.cors import CORSMiddleware # type: ignore # type: ignore
 from pydantic import BaseModel # type: ignore
@@ -13,7 +16,7 @@ import tempfile
 import uvicorn # type: ignore
 from ollama import Client, AsyncClient # type: ignore
 import asyncio
-
+import datetime
 
 app = FastAPI()
 
@@ -190,6 +193,85 @@ async def get_available_models():
         return {"models": models}
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
+    
+#tool calling function to get current time
+
+def get_datetime(format="%Y-%m-%d %H:%M:%S",timezone="UTC"):
+    """
+    Get the current time in UTC format.
+    """
+    try:
+        # current_time = time.strftime(format, time.time(timezone=timezone))
+        current_time = datetime.datetime.now(timezone).strftime(format)   
+        return current_time
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    
+def get_my_name():
+    """
+    Get the name of the user.
+    """
+    return "Docy"
+
+available_functions = {
+           'date': get_datetime,
+           'get_my_name': get_my_name,
+  
+        }  
+@app.post("/current_time")
+async def get_current_time(request: ChatRequest):
+
+    las_message = request.messages[-1]
+    prompt = las_message.content
+    print('prompt:', prompt)
+    
+    try:
+        
+
+        res = ollama.chat(
+            model="llama3.2:3b",
+            messages=[
+                {
+                    "role": "user",
+                    "content": f"{prompt}"
+                }
+            ],
+            stream=False,
+            tools=[
+                
+                {
+                    "name": "get_my_name",
+                    "description": "Get my name.",
+                    
+                }
+            ]
+        )
+
+        if res.message.tool_calls:
+          # There may be multiple tool calls in the response
+            for tool in res.message.tool_calls:
+               # Ensure the function is available, and then call it
+              if function_to_call := available_functions.get(tool.function.name):
+                    print('Calling function:', tool.function.name)
+                    print('Arguments:', tool.function.arguments)
+                    output = function_to_call(**tool.function.arguments)
+                    print('Function output:', output)
+              else:
+                    func = tool.function.name
+                    print(res)
+                    print('Calling function:', func)
+                    
+                    func = getattr(datetime, func, None)
+                    print('Arguments:', tool.function.arguments)
+                    response = func(**tool.function.arguments)
+                    print(response)
+                    print('Function', tool.function.name, 'not found')
+        
+        # print(res)
+        return {"current_time": res['message']['content'], "response": res}
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
 
 if __name__ == "__main__":
     

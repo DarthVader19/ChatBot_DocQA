@@ -84,7 +84,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [models, setModels] = useState([]);
-  const [selectedModel, setSelectedModel] = useState('llama3');
+  const [selectedModel, setSelectedModel] = useState({'model': 'gemma3'});
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -98,11 +98,11 @@ function App() {
   const fetchModels = async () => {
     try {
       const response = await axios.get(`${API_URL}/models`);
-      const availableModels = response.data.models;
+      const availableModels = response.data.models.models;
       // console.log('Available models:', availableModels.models);
       
-      setModels(availableModels.models);
-      console.log('Models:', availableModels.models, typeof availableModels.models);
+      setModels(availableModels);
+      console.log('Models:', availableModels, typeof availableModels);
       
     } catch (error) {
       console.error('Error fetching models:', error);
@@ -150,7 +150,9 @@ function App() {
 
   const handleSendMessage = async () => {
     if (!input.trim()) return;
-
+     
+    console.log(selectedModel);
+    
     const userMessage = { role: 'user', content: input };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
@@ -167,7 +169,7 @@ function App() {
             content: String(input)
           }
         ],
-        model: typeof selectedModel.model === 'string' ? selectedModel.model : 'gemma3',
+        model: selectedModel,
       };
 
       // await fetch(`${API_URL}/chat`, {
@@ -277,7 +279,7 @@ function App() {
         >
           {models.map((model) => ( 
           
-            <MenuItem key={model} value={model}>
+            <MenuItem key={model.model} value={model.model}>
               {model.model}
             </MenuItem>
           ))}
