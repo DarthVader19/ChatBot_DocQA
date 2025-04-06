@@ -1,12 +1,9 @@
-from email import message
-from multiprocessing import context
-from operator import ge
 import os
 import sys
 
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from starlette.responses import StreamingResponse, JSONResponse
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request
+from starlette.responses import StreamingResponse, JSONResponse  # Import JSONResponse for custom responses
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from PyPDF2 import PdfReader
@@ -36,13 +33,26 @@ app.add_middleware(
 )
 
 # api key validation
-@app.middleware("http") 
-async def api_key_middleware(request, call_next):
-    api_key = request.headers.get("x-api-key")
-    if api_key != "12345678":
-        return {"message": "Forbidden, enter valid api key"}
-    response = await  call_next(request)
+API_KEYS = {"your_api_key_1": "user_a", "your_api_key_2": "user_b"}  # Replace with your actual API keys
+
+# API Key Validation Middleware
+@app.middleware("http")
+async def api_key_middleware(request: Request, call_next):
+    if request.url.path.startswith("/api"):
+        api_key = request.headers.get("X-API-Key")
+        if api_key is None or api_key not in API_KEYS:
+            return JSONResponse({"detail": "Invalid API Key"}, status_code=401)
+    response = await call_next(request)  # Await the next middleware or endpoint
     return response
+
+
+
+#test api
+@app.post("/api/test")
+def test_api(request:Request):
+    
+    return {"msg":"working api key"}
+
 
 # Initialize embedding model
 embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
